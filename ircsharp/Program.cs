@@ -34,19 +34,29 @@ namespace ircsharp
             bot.Handlers["372"] = (IrcMessage msg) => { };
 
 
+            // End of MOTD - we only get this once, and it means things are going well.
+            bot.Handlers["376"] = (IrcMessage msg) =>
+            {
+                bot.Join("#cddev");
+                bot.Join("#ludumdare");
+
+            };
+
             bot.Handlers["JOIN"] = (IrcMessage msg) =>
             {
+                string cname = msg.msg;
+                if (msg.msg == "") cname = msg.to;
+
                 // I am joining a channel
                 if (msg.from == bot.Nickname)
                 {
-                    string cname = msg.msg;
-                    if (msg.msg == "") cname = msg.to;
                     Console.WriteLine("Joined {0}", cname);
                     Channels[cname.ToLower()] = new Channel(cname);
+                    bot.Action(cname, "takes a bow");
                 }
                 else
                 {
-                    Channels[msg.msg].AddUser(GetUserByName(msg.from));
+                    Channels[cname].AddUser(GetUserByName(msg.from));
                 }
 
             };
@@ -90,6 +100,12 @@ namespace ircsharp
                                 if (Users.TryGetValue(msg.from.ToLower(), out attacker) && cmdargs.Length > 0 && Users.TryGetValue(cmdargs[0].ToLower(), out defender))
                                 {
 
+                                    if (attacker == defender)
+                                    {
+                                        bot.Privmsg(ch.Name, string.Format("{0}: Stop hitting yourself.", attacker));
+                                        break;
+                                    }
+
                                     if (attacker.Level > defender.Level + 20)
                                     {
                                         bot.Privmsg(ch.Name, string.Format("{0}: That wouldn't be fair.", attacker));
@@ -109,6 +125,7 @@ namespace ircsharp
                                     StringBuilder sb = new StringBuilder();
                                     sb.AppendFormat("{0} attacks {1}! ", attacker, defender);
 
+                                    // attacker wins
                                     if (attacker_roll > defender_roll)
                                     {
                                         sb.AppendFormat("{0} wins! ({1} vs {2}) ", attacker, attacker_roll, defender_roll);
@@ -134,9 +151,9 @@ namespace ircsharp
 
                                         }
                                     }
-                                    else
+                                    else // defender wins
                                     {
-                                        sb.AppendFormat("{0} wins! ({1} vs {2})", defender, attacker_roll, defender_roll);
+                                        sb.AppendFormat("{0} wins! ({1} vs {2}) ", defender, attacker_roll, defender_roll);
 
                                         if (attacker.Level > defender.Level)
                                         {
@@ -146,7 +163,7 @@ namespace ircsharp
 
                                             adj = defender.GainXP(attacker.Level * 2);
                                             if (adj > 0)
-                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker.Nickname, attacker.Level);
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", defender.Nickname, defender.Level);
 
                                         }
                                         else
@@ -157,7 +174,7 @@ namespace ircsharp
 
                                             adj = defender.GainXP(attacker.Level);
                                             if (adj > 0)
-                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker.Nickname, attacker.Level);
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", defender.Nickname, defender.Level);
 
                                         }
                                     }
@@ -169,7 +186,7 @@ namespace ircsharp
 
                             case "stats":
                                 User u;
-                                if (Users.TryGetValue(msg.from.ToLower(), out u))
+                                if ((cmdargs.Length > 0 && Users.TryGetValue(cmdargs[0].ToLower(), out u)) || Users.TryGetValue(msg.from.ToLower(), out u))
                                 {
                                     bot.Privmsg(ch.Name, string.Format("{0} is Level {1} with {2}/{3} XP", u, u.Level, u.XP, u.Level * 10));
                                 }
@@ -198,8 +215,6 @@ namespace ircsharp
             };
 
             bot.Connect("irc.afternet.org", 6667);
-            Console.ReadLine();
-            bot.Join("#ludumdare");
             Console.ReadLine();
             bot.Quit();
         }
