@@ -19,13 +19,13 @@ namespace ircsharp
             Dictionary<string, Channel> Channels = new Dictionary<string, Channel>();
             Dictionary<string, User> Users = new Dictionary<string, User>();
             
-            Users.Add(bot.Nickname, bot);
+            Users.Add(bot.Nickname.ToLower(), bot);
 
             Func<String,User> GetUserByName = (name) => {
                 User u;
-                if (!Users.TryGetValue(name, out u)) {
+                if (!Users.TryGetValue(name.ToLower(), out u)) {
                     u = new User(name);
-                    Users.Add(name, u);
+                    Users.Add(name.ToLower(), u);
                 }
                 return u;
             };
@@ -39,7 +39,10 @@ namespace ircsharp
                 // I am joining a channel
                 if (msg.from == bot.Nickname)
                 {
-                    Channels[msg.msg] = new Channel(msg.msg);
+                    string cname = msg.msg;
+                    if (msg.msg == "") cname = msg.to;
+                    Console.WriteLine("Joined {0}", cname);
+                    Channels[cname.ToLower()] = new Channel(cname);
                 }
                 else
                 {
@@ -50,7 +53,7 @@ namespace ircsharp
             // NAMES
             bot.Handlers["353"] = (IrcMessage msg) =>
             {
-                Match m = Regex.Match(msg.msg, @"= (?<channel>[#&]\S+) :(?<name>(\S+)\s?)+", RegexOptions.ExplicitCapture);
+                Match m = Regex.Match(msg.msg, @"[@=] (?<channel>[#&]\S+) :([@]?(?<name>\S+)\s?)+", RegexOptions.ExplicitCapture);
                 string chan = m.Groups["channel"].Value;
                 // I must be in the channel already
                 Channel ch = Channels[chan];
@@ -59,6 +62,7 @@ namespace ircsharp
                     ch.AddUser(GetUserByName(name.Value));
                 }
             };
+            Random r = new Random();
 
             bot.Handlers["PRIVMSG"] = (IrcMessage msg) =>
             {
@@ -69,7 +73,120 @@ namespace ircsharp
                 }
                 else
                 {
-                    //bot.Privmsg(msg.to, "I'm a bot in a channel.");
+                    Match m = Regex.Match(msg.msg, @"(?<cmd>\S+)( ((?<arg>\S+)\s?)+)?", RegexOptions.ExplicitCapture);
+                    if (m.Success)
+                    {
+                        string cmd = m.Groups["cmd"].Value;
+                        string[] cmdargs = m.Groups["arg"].Captures.Cast<Capture>().Select(c => c.Value).ToArray();
+
+                        Channel ch = null;
+                        Channels.TryGetValue(msg.to, out ch);
+
+                        switch (cmd)
+                        {
+                            case "attack":
+                                User attacker, defender;
+
+                                if (Users.TryGetValue(msg.from.ToLower(), out attacker) && cmdargs.Length > 0 && Users.TryGetValue(cmdargs[0].ToLower(), out defender))
+                                {
+
+                                    if (attacker.Level > defender.Level + 20)
+                                    {
+                                        bot.Privmsg(ch.Name, string.Format("{0}: That wouldn't be fair.", attacker));
+                                        break;
+                                    }
+                                    else if (defender.Level > attacker.Level + 20)
+                                    {
+                                        bot.Privmsg(ch.Name, string.Format("{0}: That's probably not a good idea.", attacker));
+                                        break;
+                                    }
+
+                                    int attacker_roll = r.Next(20) + 1 + attacker.Level;
+                                    int defender_roll = r.Next(20) + 1 + defender.Level;
+
+                                    int adj;
+
+                                    StringBuilder sb = new StringBuilder();
+                                    sb.AppendFormat("{0} attacks {1}! ", attacker, defender);
+
+                                    if (attacker_roll > defender_roll)
+                                    {
+                                        sb.AppendFormat("{0} wins! ({1} vs {2}) ", attacker, attacker_roll, defender_roll);
+                                        if (attacker.Level > defender.Level)
+                                        {
+                                            adj = attacker.GainXP(defender.Level);
+                                            if (adj > 0)
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker, attacker.Level);
+                                            adj = defender.GainXP(attacker.Level / 5);
+                                            if (adj > 0)
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker, attacker.Level);
+
+                                        }
+                                        else
+                                        {
+                                            adj = attacker.GainXP(defender.Level * 2);
+                                            if (adj > 0)
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker.Nickname, attacker.Level);
+
+                                            adj = defender.GainXP(attacker.Level / 10);
+                                            if (adj > 0)
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker.Nickname, attacker.Level);
+
+                                        }
+                                    }
+                                    else
+                                    {
+                                        sb.AppendFormat("{0} wins! ({1} vs {2})", defender, attacker_roll, defender_roll);
+
+                                        if (attacker.Level > defender.Level)
+                                        {
+                                            adj = attacker.GainXP(defender.Level / 10);
+                                            if (adj > 0)
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker.Nickname, attacker.Level);
+
+                                            adj = defender.GainXP(attacker.Level * 2);
+                                            if (adj > 0)
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker.Nickname, attacker.Level);
+
+                                        }
+                                        else
+                                        {
+                                            adj = attacker.GainXP(defender.Level / 5);
+                                            if (adj > 0)
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker.Nickname, attacker.Level);
+
+                                            adj = defender.GainXP(attacker.Level);
+                                            if (adj > 0)
+                                                sb.AppendFormat("{0} has levelled up! {0} is now level {1}!", attacker.Nickname, attacker.Level);
+
+                                        }
+                                    }
+                                    
+                                    bot.Privmsg(ch.Name, sb.ToString());
+
+                                }
+                                break;
+
+                            case "stats":
+                                User u;
+                                if (Users.TryGetValue(msg.from.ToLower(), out u))
+                                {
+                                    bot.Privmsg(ch.Name, string.Format("{0} is Level {1} with {2}/{3} XP", u, u.Level, u.XP, u.Level * 10));
+                                }
+                                break;
+
+                        }
+                    }
+                }
+            };
+            bot.Handlers["NICK"] = (IrcMessage msg) =>
+            {
+                if (msg.from != bot.Nickname)
+                {
+                    User u = GetUserByName(msg.from);
+                    Users.Remove(u.Nickname.ToLower());
+                    u.Nickname = msg.msg;
+                    Users.Add(msg.msg.ToLower(), u);
                 }
             };
             bot.Handlers["MODE"] = (IrcMessage msg) =>
@@ -79,7 +196,10 @@ namespace ircsharp
                     bot.Privmsg(msg.to, "bwahaha.");
                 }
             };
-            bot.Connect("irc.bluecherry.net", 6667);
+
+            bot.Connect("irc.afternet.org", 6667);
+            Console.ReadLine();
+            bot.Join("#ludumdare");
             Console.ReadLine();
             bot.Quit();
         }

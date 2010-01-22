@@ -18,7 +18,7 @@ namespace ircsharp
         public IrcSharpBot(string nick) : base(nick)
         {
             tcp = new TcpClient();
-
+            Level = 100;
         }
 
         public void Connect(string host, int port) {
@@ -76,6 +76,13 @@ namespace ircsharp
             RawSend("KICK {0} {1} pwnt\r\n", channel, name);
         }
 
+        // wrong.
+        public void Action(string channel, string action)
+        {
+            RawSend("PRIVMSG {0} :ACTION", channel);
+            tcp.Client.Send(new byte[]{1});
+            RawSend(" {0}\r\n", action);
+        }
 
 
         private void onLine(string line)
@@ -127,9 +134,8 @@ namespace ircsharp
         {
             byte[] buffer = new byte[1024];
             tcp.Client.BeginReceive(buffer, 0, 1024, SocketFlags.None, onReceive, buffer);
+            User("sharpbot", "quin.sniqe.com", "irc.afternet.org", "coads");
             Nick(Nickname);
-            User("sharpbot", "quin.sniqe.com", "irc.bluecherry.net", "coads");
-            Join("#combatdronedev");
         }
 
         public void Pong(string server)
