@@ -79,9 +79,10 @@ namespace ircsharp
         // wrong.
         public void Action(string channel, string action)
         {
-            RawSend("PRIVMSG {0} :ACTION", channel);
+            RawSend("PRIVMSG {0} :", channel);
             tcp.Client.Send(new byte[]{1});
-            RawSend(" {0}\r\n", action);
+            RawSend("ACTION {0}", action);
+            tcp.Client.Send(new byte[] { 1, 13, 10 });
         }
 
 
