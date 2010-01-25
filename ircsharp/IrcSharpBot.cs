@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ircsharp
 {
@@ -19,6 +20,9 @@ namespace ircsharp
         {
             tcp = new TcpClient();
             Level = 100;
+
+            Handlers["PING"] = (msg) => Pong(msg.Params[0]);
+
         }
 
         public void Connect(string host, int port) {
@@ -89,18 +93,11 @@ namespace ircsharp
         private void onLine(string line)
         {
             bool found = false;
-            if (line.StartsWith("NOTICE AUTH")) return;
-            if (line.StartsWith("PING"))
-            {
-                Pong(line.Substring(5));
-                Console.WriteLine("Ping.");
-                found = true;
-            }
-
+            
             IrcMessage message = new IrcMessage(line);
 
             Handler h;
-            if (Handlers.TryGetValue(message.msgtype, out h))
+            if (Handlers.TryGetValue(message.Command, out h))
             {
                 h.Invoke(message);
                 found = true;

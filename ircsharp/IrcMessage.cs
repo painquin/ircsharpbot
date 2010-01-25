@@ -8,23 +8,23 @@ namespace ircsharp
 {
     class IrcMessage
     {
-        public string from { get; protected set; }
-        public string msgtype { get; protected set; }
-        public string to { get; protected set; }
-        public string msg { get; protected set; }
+        public string Prefix { get; protected set; }
+        public string Command { get; protected set; }
+        public List<String> Params { get; protected set; }
+
+        protected static Regex re = new Regex(@"^(:(?<prefix>\S+)\s+)?(?<command>([A-z]+|\d{3}))(\s+(:(?<params>.+$)|(?<params>\S+)))*", RegexOptions.ExplicitCapture);
 
         public IrcMessage(string line)
         {
-            Match match = Regex.Match(line, @":(?<sender>\S+) (?<msgtype>\S+)( (?<recp>[^:\s]+))?( :?(?<msg>.+))?", RegexOptions.ExplicitCapture);
-
-            from = match.Groups["sender"].Value;
-            if (from.Contains('!'))
+            Match match = re.Match(line);
+            if (match.Success)
             {
-                from = from.Substring(0, from.IndexOf('!'));
+                Prefix = match.Groups["prefix"].Value;
+                if (Prefix.Contains('!')) Prefix = Prefix.Substring(0, Prefix.IndexOf('!'));
+                Command = match.Groups["command"].Value;
+                Params = new List<string>();
+                Params.AddRange(from p in match.Groups["params"].Captures.Cast<Capture>() select p.Value);
             }
-            msgtype = match.Groups["msgtype"].Value;
-            to = match.Groups["recp"].Value;
-            msg = match.Groups.Count > 3 ? match.Groups["msg"].Value : "";
         }
     }
 }
