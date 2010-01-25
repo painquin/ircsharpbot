@@ -38,7 +38,7 @@ namespace ircsharp
             bot.Handlers["376"] = (IrcMessage msg) =>
             {
                 bot.Join("#cddev");
-                bot.Join("#ludumdare");
+                bot.Join("#fightclub");
 
             };
 
