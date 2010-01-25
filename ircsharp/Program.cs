@@ -66,7 +66,7 @@ namespace ircsharp
                 Match m = Regex.Match(msg.msg, @"[@=] (?<channel>[#&]\S+) :([@]?(?<name>\S+)\s?)+", RegexOptions.ExplicitCapture);
                 string chan = m.Groups["channel"].Value;
                 // I must be in the channel already
-                Channel ch = Channels[chan];
+                Channel ch = Channels[chan.ToLower()];
                 foreach (Capture name in m.Groups["name"].Captures)
                 {
                     ch.AddUser(GetUserByName(name.Value));
@@ -90,7 +90,7 @@ namespace ircsharp
                         string[] cmdargs = m.Groups["arg"].Captures.Cast<Capture>().Select(c => c.Value).ToArray();
 
                         Channel ch = null;
-                        Channels.TryGetValue(msg.to, out ch);
+                        Channels.TryGetValue(msg.to.ToLower(), out ch);
 
                         switch (cmd)
                         {
