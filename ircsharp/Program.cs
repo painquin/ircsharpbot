@@ -56,7 +56,7 @@ namespace ircsharp
                 }
                 else
                 {
-                    Channels[cname].AddUser(GetUserByName(msg.from));
+                    Channels[cname.ToLower()].AddUser(GetUserByName(msg.from));
                 }
 
             };
